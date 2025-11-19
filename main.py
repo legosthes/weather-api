@@ -1,5 +1,5 @@
+import requests
 from typing import Union
-
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -10,6 +10,10 @@ def read_root():
     return {"Hello": "World"}
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@app.get("/weather/{city}")
+def get_weather(city: str):
+    url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{city}/next7days?unitGroup=metric&key=HMRFP2UWG2MMCZRAG5LSVKQMH&contentType=json"
+    response = requests.get(url)
+    for i in response:
+        print(i)
+    return {"city": city}
