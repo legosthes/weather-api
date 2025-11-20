@@ -20,7 +20,6 @@ def get_weather(city: str):
 
     try:
         response = requests.get(url)
-        print(API_KEY)
 
         if response.status_code == 200:
             data = response.json()
