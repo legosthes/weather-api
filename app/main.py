@@ -19,19 +19,25 @@ def get_weather(city: str):
     url = f"{BASE_URL}/{city}/next7days?unitGroup=metric&key={API_KEY}&contentType=json"
 
     try:
+        r = get_redis_client()
+        cache_key = f"weather:{city}"
+        cached_data = r.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)
+
         response = requests.get(url)
         data = response.json()
-        r = get_redis_client()
 
         if response.status_code == 200:
-            cached_data = r.get(f"weather:{city}")
+            data_str = json.dumps(data)
+            r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
 
-            if cached_data is None:
-                data_str = json.dumps(data)
-                r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
-                return data
-            else:
-                return json.loads(cached_data)
+            return data
+        else:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Weather API error: {response.status_code}",
+            )
 
     except requests.exceptions.RequestException as error:
         raise HTTPException(
