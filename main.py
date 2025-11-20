@@ -1,8 +1,10 @@
 import requests
-from typing import Union
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, HTTPException, Response
+from dotenv import load_dotenv
 
 app = FastAPI()
+load_dotenv()
 
 
 @app.get("/")
@@ -12,13 +14,19 @@ def read_root():
 
 @app.get("/weather/{city}")
 def get_weather(city: str):
-    url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{city}/next7days?unitGroup=metric&key=HMRFP2UWG2MMCZRAG5LSVKQMH&contentType=json"
-    response = requests.get(url)
+    API_KEY = os.getenv("API_KEY")
+    BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+    url = f"{BASE_URL}/{city}/next7days?unitGroup=metric&key={API_KEY}&contentType=json"
 
-    if response.status_code == 200:
-        data = response.json()
+    try:
+        response = requests.get(url)
+        print(API_KEY)
 
-        message = f"The weather in {city} is {data['days'][0]['tempmin']}-{data['days'][0]['tempmax']}\u00b0C"
-    else:
-        message = "Data not found."
-    return message
+        if response.status_code == 200:
+            data = response.json()
+
+            return Response(status_code=200)
+    except requests.exceptions.RequestException as error:
+        raise HTTPException(
+            status_code=503, detail=f"Error contacting weather service: {error}"
+        )
