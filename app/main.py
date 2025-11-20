@@ -6,6 +6,7 @@ from app.redis_client import get_redis_client
 
 
 app = FastAPI()
+r = get_redis_client()
 
 
 @app.get("/")
@@ -19,7 +20,6 @@ def get_weather(city: str):
     url = f"{BASE_URL}/{city}/next7days?unitGroup=metric&key={API_KEY}&contentType=json"
 
     try:
-        r = get_redis_client()
         cache_key = f"weather:{city}"
         cached_data = r.get(cache_key)
         if cached_data:
