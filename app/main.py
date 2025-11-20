@@ -1,5 +1,4 @@
 import requests
-import os
 from fastapi import FastAPI, HTTPException, Response
 from app.config import API_KEY
 
@@ -23,7 +22,7 @@ def get_weather(city: str):
         if response.status_code == 200:
             data = response.json()
 
-            return Response(status_code=200)
+            return data
     except requests.exceptions.RequestException as error:
         raise HTTPException(
             status_code=503, detail=f"Error contacting weather service: {error}"
