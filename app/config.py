@@ -6,3 +6,4 @@ load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+CACHE_EXPIRATION = 43200

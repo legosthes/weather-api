@@ -1,6 +1,8 @@
 import requests
-from fastapi import FastAPI, HTTPException, Response
-from app.config import API_KEY
+import json
+from fastapi import FastAPI, HTTPException
+from app.config import API_KEY, CACHE_EXPIRATION
+from app.redis_client import get_redis_client
 
 
 app = FastAPI()
@@ -18,11 +20,19 @@ def get_weather(city: str):
 
     try:
         response = requests.get(url)
+        data = response.json()
+        r = get_redis_client()
 
         if response.status_code == 200:
-            data = response.json()
+            cached_data = r.get(f"weather:{city}")
 
-            return data
+            if cached_data is None:
+                data_str = json.dumps(data)
+                r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
+                return data
+            else:
+                return json.loads(cached_data)
+
     except requests.exceptions.RequestException as error:
         raise HTTPException(
             status_code=503, detail=f"Error contacting weather service: {error}"
