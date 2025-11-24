@@ -1,5 +1,6 @@
 import requests
 import json
+import redis
 from fastapi import FastAPI, HTTPException
 from app.config import API_KEY, CACHE_EXPIRATION
 from app.redis_client import get_redis_client
@@ -25,6 +26,10 @@ def get_weather(city: str, start_date, end_date):
         if cached_data:
             return json.loads(cached_data)
 
+    except redis.ConnectionError as error:
+        raise f"Connection error: {error}"
+
+    try:
         response = requests.get(url)
 
         if response.status_code == 200:
@@ -37,7 +42,7 @@ def get_weather(city: str, start_date, end_date):
         elif response.status_code == 400:
             raise HTTPException(
                 status_code=404,
-                detail=f"Data is not available. Either {city} is not a valid city.",
+                detail=f"Data is not available. Either {city} is not a valid city or date is insert incorrectly.",
             )
         elif response.status_code == 429:
             raise HTTPException(
