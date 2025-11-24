@@ -32,25 +32,28 @@ def get_weather(city: str, start_date, end_date):
     try:
         response = requests.get(url)
 
-        if response.status_code == 200:
-            data = response.json()
-            print(data)
-            data_str = json.dumps(data)
-            r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
+        response.raise_for_status()
 
-            return data
-        elif response.status_code == 400:
+        data = response.json()
+        print(data)
+        data_str = json.dumps(data)
+        r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
+
+        return data
+
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400:
             raise HTTPException(
                 status_code=404,
-                detail=f"Data is not available. Either {city} is not a valid city or date is insert incorrectly.",
+                detail=f"Data is not available. Either '{city}' is not a valid city or date is insert incorrectly.",
             )
-        elif response.status_code == 429:
+        elif e.response.status_code == 429:
             raise HTTPException(
                 status_code=429,
                 detail="Too many requests",
             )
-
-    except requests.exceptions.RequestException as error:
-        raise HTTPException(
-            status_code=500, detail=f"Error contacting weather service: {error}"
-        )
+        elif e.response.status_code == 500:
+            raise HTTPException(
+                status_code=500,
+                detail="Internal service error",
+            )
