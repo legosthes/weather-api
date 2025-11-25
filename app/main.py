@@ -21,7 +21,7 @@ def get_weather(city: str, start_date, end_date):
     url = f"{BASE_URL}/{city}/{start_date}/{end_date}?unitGroup=metric&key={API_KEY}&contentType=json&include=days&elements=datetime,tempmax,tempmin,feelslike"
 
     try:
-        cache_key = f"weather:{city}, {start_date}"
+        cache_key = f"weather:{city}, {start_date}-{end_date}"
         cached_data = r.get(cache_key)
         if cached_data:
             return json.loads(cached_data)
@@ -35,9 +35,9 @@ def get_weather(city: str, start_date, end_date):
         response.raise_for_status()
 
         data = response.json()
-        print(data)
+
         data_str = json.dumps(data)
-        r.set(f"weather:{city}", data_str, ex=CACHE_EXPIRATION)
+        r.set(cache_key, data_str, ex=CACHE_EXPIRATION)
 
         return data
 
