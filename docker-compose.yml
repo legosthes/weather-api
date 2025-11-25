@@ -1,6 +1,18 @@
 name: weather-api
 
 services:
+  api:
+      build: .  # Builds from your Dockerfile
+      ports:
+        - "8000:8000"  # Expose API to your browser
+      environment:
+        - REDIS_HOST=redis  # ← Points to Redis container!
+        - API_KEY=${API_KEY}
+      depends_on:
+        - redis  # Start Redis first
+      restart: unless-stopped
+
+
   redis:
     image: redis:7-alpine
     ports:
