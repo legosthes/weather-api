@@ -16,7 +16,7 @@ def read_root():
 
 
 @app.get("/weather/{city}/{start_date}/{end_date}")
-def get_weather(city: str, start_date, end_date):
+def get_weather(city: str, start_date: str, end_date: str):
     BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
     url = f"{BASE_URL}/{city}/{start_date}/{end_date}?unitGroup=metric&key={API_KEY}&contentType=json&include=days&elements=datetime,tempmax,tempmin,feelslike"
 
@@ -27,7 +27,7 @@ def get_weather(city: str, start_date, end_date):
             return json.loads(cached_data)
 
     except redis.ConnectionError as error:
-        raise f"Connection error: {error}"
+        raise HTTPException(status_code=503, detail=f"Redis connection error: {error}")
 
     try:
         response = requests.get(url)
@@ -37,10 +37,17 @@ def get_weather(city: str, start_date, end_date):
         data = response.json()
 
         data_str = json.dumps(data)
-        r.set(cache_key, data_str, ex=CACHE_EXPIRATION)
+
+        try:
+            r.set(cache_key, data_str, ex=CACHE_EXPIRATION)
+        except redis.ConnectionError as error:
+            raise HTTPException(
+                status_code=503, detail=f"Redis connection error: {error}"
+            )
 
         return data
 
+    # errors from visual crossing api
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400:
             raise HTTPException(
@@ -57,3 +64,15 @@ def get_weather(city: str, start_date, end_date):
                 status_code=500,
                 detail="Internal service error",
             )
+        else:
+            # catching other errors from visual crossing api
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Weather API returned an error: {e.response.status_code}",
+            )
+    # general errors
+    except requests.exceptions.RequestException as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Error contacting weather service: {error}",
+        )
