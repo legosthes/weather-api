@@ -52,7 +52,7 @@ def get_weather(city: str, start_date: str, end_date: str):
         if e.response.status_code == 400:
             raise HTTPException(
                 status_code=404,
-                detail=f"Data is not available. Either '{city}' is not a valid city or date is insert incorrectly.",
+                detail=f"Data is not available. Either '{city}' is not a valid city or date is inserted incorrectly.",
             )
         elif e.response.status_code == 429:
             raise HTTPException(
