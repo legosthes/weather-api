@@ -1,23 +1,35 @@
 import requests
 import json
 import redis
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI, HTTPException, Request
 from app.config import API_KEY, CACHE_EXPIRATION
 from app.redis_client import get_redis_client
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-
+limiter = Limiter(
+    # track each visitor by their IP address
+    key_func=get_remote_address,
+    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379",
+)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 r = get_redis_client()
 
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {"message": "Weather API is running!"}
 
 
 @app.get("/weather/{city}/{start_date}/{end_date}")
-def get_weather(city: str, start_date: str, end_date: str):
+@limiter.limit("10/minute")
+def get_weather(request: Request, city: str, start_date: str, end_date: str):
     BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+
     url = f"{BASE_URL}/{city}/{start_date}/{end_date}?unitGroup=metric&key={API_KEY}&contentType=json&include=days&elements=datetime,tempmax,tempmin,feelslike"
 
     try:
@@ -31,11 +43,8 @@ def get_weather(city: str, start_date: str, end_date: str):
 
     try:
         response = requests.get(url)
-
         response.raise_for_status()
-
         data = response.json()
-
         data_str = json.dumps(data)
 
         try:
@@ -57,7 +66,7 @@ def get_weather(city: str, start_date: str, end_date: str):
         elif e.response.status_code == 429:
             raise HTTPException(
                 status_code=429,
-                detail="Too many requests",
+                detail="Too many requests to weather service, please try again later.",
             )
         elif e.response.status_code == 500:
             raise HTTPException(
