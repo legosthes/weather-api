@@ -3,7 +3,7 @@ import json
 import redis
 import os
 from fastapi import FastAPI, HTTPException, Request
-from app.config import API_KEY, CACHE_EXPIRATION
+from app.config import API_KEY, CACHE_EXPIRATION, REDIS_HOST
 from app.redis_client import get_redis_client
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 limiter = Limiter(
     # track each visitor by their IP address
     key_func=get_remote_address,
-    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379",
+    storage_uri=f"redis://{REDIS_HOST}:6379",
 )
 app = FastAPI()
 app.state.limiter = limiter
