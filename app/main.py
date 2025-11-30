@@ -1,13 +1,25 @@
 import requests
 import json
 import redis
-import os
+import logging
 from fastapi import FastAPI, HTTPException, Request
 from app.config import API_KEY, CACHE_EXPIRATION, REDIS_HOST
 from app.redis_client import get_redis_client
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+# logging config
+
+# the module name will be "main"
+logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 
 limiter = Limiter(
     # track each visitor by their IP address
@@ -36,9 +48,13 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
         cache_key = f"weather:{city}, {start_date}-{end_date}"
         cached_data = r.get(cache_key)
         if cached_data:
+            logger.info(f"Cache HIT for {city}")
             return json.loads(cached_data)
 
+        logger.info(f"Cache MISS for {city}. Fetching from API...")
+
     except redis.ConnectionError as error:
+        logger.error(f"Redis connection error: {error}")
         raise HTTPException(status_code=503, detail=f"Redis connection error: {error}")
 
     try:
@@ -48,8 +64,10 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
         data_str = json.dumps(data)
 
         try:
+            logger.info(f"Cached data for {city} (TTL: 12 hours)")
             r.set(cache_key, data_str, ex=CACHE_EXPIRATION)
         except redis.ConnectionError as error:
+            logger.error(f"Redis connection error: {error}")
             raise HTTPException(
                 status_code=503, detail=f"Redis connection error: {error}"
             )
@@ -58,6 +76,7 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
 
     # errors from visual crossing api
     except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTPError from Visual Crossing: {e.response.status_code}")
         if e.response.status_code == 400:
             raise HTTPException(
                 status_code=404,
@@ -81,6 +100,7 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
             )
     # general errors
     except requests.exceptions.RequestException as error:
+        logger.error(f"Error contacting weather service: {error}")
         raise HTTPException(
             status_code=503,
             detail=f"Error contacting weather service: {error}",
