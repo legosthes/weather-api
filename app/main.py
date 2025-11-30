@@ -55,7 +55,9 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
 
     except redis.ConnectionError as error:
         logger.error(f"Redis connection error: {error}")
-        raise HTTPException(status_code=503, detail=f"Redis connection error: {error}")
+        raise HTTPException(
+            status_code=503, detail=f"Redis connection error: {error}", exc_info=True
+        )
 
     try:
         response = requests.get(url)
@@ -64,10 +66,10 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
         data_str = json.dumps(data)
 
         try:
-            logger.info(f"Cached data for {city} (TTL: 12 hours)")
+            logger.info(f"Cached data for {city} (TTL: {CACHE_EXPIRATION}s)")
             r.set(cache_key, data_str, ex=CACHE_EXPIRATION)
         except redis.ConnectionError as error:
-            logger.error(f"Redis connection error: {error}")
+            logger.error(f"Redis connection error: {error}", exc_info=True)
             raise HTTPException(
                 status_code=503, detail=f"Redis connection error: {error}"
             )
@@ -76,7 +78,9 @@ def get_weather(request: Request, city: str, start_date: str, end_date: str):
 
     # errors from visual crossing api
     except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTPError from Visual Crossing: {e.response.status_code}")
+        logger.error(
+            f"HTTPError from Visual Crossing: {e.response.status_code}", exc_info=True
+        )
         if e.response.status_code == 400:
             raise HTTPException(
                 status_code=404,
